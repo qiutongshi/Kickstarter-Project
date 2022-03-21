@@ -1,0 +1,70 @@
+---
+title: "kickstarter_logit"
+author: "QiutongShi"
+date: "3/3/2022"
+output: word_document
+---
+
+## data preparation
+
+We’ll randomly split the data into training set (80% for building a predictive model) and test set (20% for evaluating the model). Make sure to set seed for reproductibility.
+
+```{r}
+library(tidyverse)
+
+rm(list=ls()) 
+setwd("~/Desktop/Kickstarter")
+ks<-read.csv('kickstarter_cleaned.csv',stringsAsFactors = TRUE)
+
+set.seed(1)
+train_size = floor(nrow(ks)*.80)
+train_index = sample(seq_len(nrow(ks)),size = train_size)
+train <- ks[train_index,]
+test <- ks[-train_index,]
+
+```
+
+## full logistic regresion model
+
+predict whether a project is successful or not based on backers_count, category, converted_pledged_amount, goal, staff_picked 
+
+```{r}
+full.model <- glm(success~backers_count+category+converted_pledged_amount+goal+
+                    staff_pick, data = train, family = binomial)
+summary(full.model)
+```
+
+## perform stepwise selection
+
+```{r}
+library(MASS)
+step.model <- full.model %>% stepAIC(trace = FALSE)
+coef(step.model)
+```
+### Compare the full and the stepwise models
+
+Here, we’ll compare the performance of the full and the stepwise logistic models. The best model is defined as the model that has the lowest classification error rate in predicting the class of new test data:
+
+```{r}
+#Prediction accuracy of the full logistic regression model.
+# Make predictions
+prob.full <- full.model %>% predict(test, type = "response")
+predicted.full <- ifelse(prob.full > 0.5, 1, 0)
+# Prediction accuracy
+observed <- test$success
+mean(predicted.full == observed)
+
+#Prediction accuracy of the stepwise logistic regression model
+# Make predictions
+prob.step <- predict(step.model, test, type = "response")
+predicted.step <- ifelse(prob.step > 0.5, 1, 0)
+# Prediction accuracy
+mean(predicted.step ==observed)
+```
+# Conclusion
+According to the accuracy rate, the stepwise regression have selected a reduced number of predictor variables resulting to a final model, which performance was similar to the one of the full model.
+
+So, the stepwise selection reduced the complexity of the model without compromising its accuracy. Therefore, we choose the simpler model, here the final model is returned by the stepwise regression.
+
+The model to predict whether a project is successful or not based on backers_count, category, sub_category, converted_pledged_amount, goal 
+
